@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0e1a">
+    <title>Tyrs geometri app 🔷</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: #0a0e1a;
+        }
+        
+        input {
+            font-size: 16px !important;
+        }
+        
+        .locked {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        /* Kun emoji-animasjoner */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-25px) scale(1.2); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.8); }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        @keyframes svgDraw {
+            to { stroke-dashoffset: 0; }
+        }
+        
+        .bounce { animation: bounce 0.6s ease-in-out; }
+        .shake { animation: shake 0.5s ease-in-out; }
+        .glow { animation: glow 2s ease-in-out infinite; }
+        .slideIn { animation: slideIn 0.4s ease-out; }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            animation: confetti 3s ease-out forwards;
+            z-index: 1000;
+        }
+        
+        .svg-draw {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: svgDraw 1.5s ease-in-out forwards;
+        }
+        
+        /* Hover effekter - kun på interaktive elementer */
+        .hover-grow:hover {
+            transform: scale(1.03);
+            transition: transform 0.2s ease;
+        }
+        
+        .hover-glow:hover {
+            box-shadow: 0 0 25px rgba(34, 211, 238, 0.5);
+            transition: box-shadow 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // OPPGAVEBANK med metadata for illustrasjoner
+        const questionBank = {
+          nivå1: {
+            name: "Nivå 1 - Grunnleggende",
+            emoji: "🟢",
+            color: "#22c55e",
+            topics: [
+              {
+                id: 'trekanter_basic',
+                name: 'Trekanter',
+                emoji: '🔺',
+                questions: [
+                  { q: "Hvor mange hjørner har en trekant?", a: "3", hint: "Tegn en trekant og tell hjørnene! Husk at 'tre-kant' gir deg et hint...", visual: "trekant_basic" },
+                  { q: "Hvor mange sider har en trekant?", a: "3", hint: "En trekant har like mange sider som hjørner. Tell på tegningen!", visual: "trekant_basic" },
+                  { q: "Hvis en trekant har vinkler på 60°, 60° og 60°, hvor mange grader totalt?", a: "180", hint: "Legg sammen de tre vinklene: 60 + 60 + 60 = ?", visual: "trekant_vinkler" },
+                  { q: "En trekant har grunnlinje 10 cm og høyde 4 cm. Hva er arealet? (Formel: grunnlinje × høyde ÷ 2)", a: "20", hint: "Først gang 10 med 4, deretter del resultatet på 2!", visual: "trekant_areal" },
+                  { q: "En likesidet trekant har alle sider på 5 cm. Hva er omkretsen?", a: "15", hint: "Omkrets = alle sidene lagt sammen. Siden alle tre sider er 5 cm...", visual: "trekant_likesidet" }
+                ]
+              },
+              {
+                id: 'firkanter_basic',
+                name: 'Firkanter',
+                emoji: '◼️',
+                questions: [
+                  { q: "Hvor mange hjørner har en firkant?", a: "4", hint: "Se på navnet: 'fire-kant' - det gir deg svaret!", visual: "kvadrat_basic" },
+                  { q: "Et kvadrat har sider på 5 cm. Hva er omkretsen?", a: "20", hint: "Et kvadrat har 4 like lange sider. Legg sammen alle fire!", visual: "kvadrat_omkrets" },
+                  { q: "Et rektangel er 8 cm langt og 3 cm bredt. Hva er arealet?", a: "24", hint: "Areal av rektangel = lengde ganger bredde. Gang 8 med 3!", visual: "rektangel_areal" },
+                  { q: "Hvor mange grader er det totalt i alle hjørnene til en firkant?", a: "360", hint: "Hvert hjørne er 90°. Fire hjørner ganger 90 = ?", visual: "firkant_vinkler" },
+                  { q: "Et kvadrat har sider på 6 cm. Hva er arealet?", a: "36", hint: "Areal av kvadrat = side ganger side. Hva er 6 × 6?", visual: "kvadrat_areal" },
+                  { q: "Et rektangel er 10 cm langt og 4 cm bredt. Hva er omkretsen?", a: "28", hint: "Legg sammen alle fire sidene: 10 + 4 + 10 + 4 = ?", visual: "rektangel_omkrets_2" },
+                  { q: "Et kvadrat har omkrets 24 cm. Hvor lange er sidene?", a: "6", hint: "Omkretsen er alle 4 sidene til sammen. Del 24 på 4!", visual: "kvadrat_omkrets_2" },
+                  { q: "Et rektangel har areal 35 cm² og lengde 7 cm. Hva er bredden?", a: "5", hint: "Areal = lengde × bredde. Hvis 7 × bredde = 35, hva er bredde?", visual: "rektangel_areal_2" },
+                  { q: "En TV-skjerm er et rektangel som er 80 cm bred og 45 cm høy. Hva er arealet?", a: "3600", hint: "Gang bredden med høyden: 80 × 45 = ?", visual: "tv_rektangel" },
+                  { q: "En firkant har alle sider på 9 cm. Hva er omkretsen?", a: "36", hint: "Hvis alle sider er like, gang side med 4!", visual: "kvadrat_stor" }
+                ]
+              }
+            ]
+          },
+          nivå2: {
+            name: "Nivå 2 - Middels",
+            emoji: "🟡",
+            color: "#eab308",
+            topics: [
+              {
+                id: 'spesielle_firkanter',
+                name: 'Spesielle firkanter',
+                emoji: '💎',
+                questions: [
+                  { q: "En rombe har alle sider på 6 cm. Hva er omkretsen?", a: "24", hint: "En rombe har 4 like lange sider, akkurat som et kvadrat! Legg sammen alle fire.", visual: "rombe_basic" },
+                  { q: "Et parallellogram har bunnsiden 8 cm og høyde 5 cm. Hva er arealet? (Formel: bunn × høyde)", a: "40", hint: "Gang bunnsiden med høyden: 8 × 5 = ?", visual: "parallellogram_areal" },
+                  { q: "En trapes har parallelle sider på 6 cm og 10 cm, og høyde 4 cm. Hva er arealet? (Formel: (a + b) ÷ 2 × høyde)", a: "32", hint: "Først: (6 + 10) ÷ 2 = 8, deretter: 8 × 4 = ?", visual: "trapes_areal" },
+                  { q: "En rombe har diagonaler på 8 cm og 6 cm. Hva er arealet? (Formel: (d₁ × d₂) ÷ 2)", a: "24", hint: "Gang diagonalene: 8 × 6 = 48, så del på 2!", visual: "rombe_diagonaler" },
+                  { q: "Et parallellogram har sider på 7 cm og 5 cm. Hva er omkretsen?", a: "24", hint: "Et parallellogram har to par like lange sider: 7 + 5 + 7 + 5 = ?", visual: "parallellogram_omkrets" },
+                  { q: "En rombe har alle sider på 9 cm. Hvor mange like lange sider har den?", a: "4", hint: "En rombe har alltid 4 like lange sider, som et skjevt kvadrat!", visual: "rombe_sider" },
+                  { q: "Et parallellogram har bunn 12 cm og høyde 3 cm. Hva er arealet?", a: "36", hint: "Areal = bunn × høyde. Gang 12 med 3!", visual: "parallellogram_areal_2" },
+                  { q: "En trapes har parallelle sider på 5 cm og 9 cm, og høyde 6 cm. Hva er arealet?", a: "42", hint: "Først finn gjennomsnittet av sidene: (5 + 9) ÷ 2 = 7, så gang med høyde: 7 × 6 = ?", visual: "trapes_areal_2" }
+                ]
+              },
+              {
+                id: 'sirkler_medium',
+                name: 'Sirkler',
+                emoji: '⭕',
+                questions: [
+                  { q: "Hvis en sirkel har radius 5 cm, hva er diameteren?", a: "10", hint: "Diameter går hele veien gjennom sirkelen. Den er dobbelt så lang som radius!", visual: "sirkel_diameter" },
+                  { q: "Hvis diameter er 14 cm, hva er radius?", a: "7", hint: "Radius er halvparten av diameter. Del diameteren på 2!", visual: "sirkel_radius" },
+                  { q: "En sirkel har radius 3 cm. Hva er ca. omkretsen? (Bruk π ≈ 3)", a: "18", hint: "Formelen er 2 × π × radius. Sett inn tallene: 2 × 3 × 3 = ?", visual: "sirkel_omkrets" },
+                  { q: "En sirkel har radius 4 cm. Hva er ca. arealet? (Bruk π ≈ 3)", a: "48", hint: "Formelen er π × radius × radius. Sett inn: 3 × 4 × 4 = ?", visual: "sirkel_areal" },
+                  { q: "Hvis omkretsen til en sirkel er ca. 30 cm, hva er radius? (Bruk π ≈ 3)", a: "5", hint: "Omkrets = 2 × π × radius = 2 × 3 × radius = 6 × radius. Hva må radius være hvis 6 × radius = 30?", visual: "sirkel_omkrets" }
+                ]
+              },
+              {
+                id: 'vinkler_medium',
+                name: 'Vinkler',
+                emoji: '📐',
+                questions: [
+                  { q: "Hvor mange grader er en rett vinkel?", a: "90", hint: "En rett vinkel er som hjørnet på et ark eller på en firkant!", visual: "vinkel_rett" },
+                  { q: "Hvis en vinkel er 45°, hvor mye mangler til 90°?", a: "45", hint: "Trekk 45 fra 90. Hva får du da?", visual: "vinkel_45" },
+                  { q: "Hvor mange grader er en hel sirkel?", a: "360", hint: "En hel omgang rundt er alltid det samme antallet grader!", visual: "vinkel_360" },
+                  { q: "En trekant har to vinkler på 60° og 70°. Hva er den tredje vinkelen?", a: "50", hint: "Alle tre vinklene i en trekant er til sammen 180°. Regn ut: 60 + 70 = ?, og 180 - ? = ?", visual: "trekant_vinkler" },
+                  { q: "To vinkler står ved siden av hverandre og er til sammen 180°. Den ene er 110°. Hva er den andre?", a: "70", hint: "Hvis de to til sammen er 180, må du trekke den ene fra 180!", visual: "vinkler_supplementary" }
+                ]
+              }
+            ]
+          },
+          nivå3: {
+            name: "Nivå 3 - Avansert",
+            emoji: "🔴",
+            color: "#ef4444",
+            topics: [
+              {
+                id: 'areal_advanced',
+                name: 'Areal',
+                emoji: '📏',
+                questions: [
+                  { q: "Et rom er 5 meter langt og 4 meter bredt. Hva er arealet i m²?", a: "20", hint: "Areal av et rektangel = lengde × bredde. Gang 5 med 4!", visual: "rom" },
+                  { q: "En trekant har grunnlinje 12 cm og høyde 8 cm. Hva er arealet?", a: "48", hint: "Formel: (grunnlinje × høyde) ÷ 2. Først gang 12 med 8, så del på 2!", visual: "trekant_areal" },
+                  { q: "Et kvadrat har areal 49 cm². Hvor lange er sidene?", a: "7", hint: "Hvis side × side = 49, prøv å finne et tall som ganget med seg selv blir 49!", visual: "kvadrat_areal" },
+                  { q: "En sirkel har radius 5 cm. Hva er ca. arealet? (Bruk π ≈ 3)", a: "75", hint: "Formel: π × radius². Det blir: 3 × 5 × 5 = ?", visual: "pizza" },
+                  { q: "Et rektangel har areal 60 cm² og bredde 5 cm. Hva er lengden?", a: "12", hint: "Areal = lengde × bredde, så lengde = areal ÷ bredde. Del 60 på 5!", visual: "rektangel_areal" }
+                ]
+              },
+              {
+                id: 'omkrets_advanced',
+                name: 'Omkrets',
+                emoji: '↔️',
+                questions: [
+                  { q: "Et rektangel er 7 cm langt og 4 cm bredt. Hva er omkretsen?", a: "22", hint: "Omkrets = alle sidene sammen. Rektangel har 2 lange og 2 korte sider: 7 + 7 + 4 + 4 = ?", visual: "rektangel_omkrets" },
+                  { q: "En fotballbane er 100 m lang og 60 m bred. Hvor langt løper du rundt hele banen?", a: "320", hint: "Du må rundt hele banen! Regn: 100 + 60 + 100 + 60 = ?", visual: "fotballbane" },
+                  { q: "En trekant har sider på 5 cm, 7 cm og 8 cm. Hva er omkretsen?", a: "20", hint: "Legg sammen alle tre sidene: 5 + 7 + 8 = ?", visual: "trekant_omkrets" },
+                  { q: "Et kvadrat har omkrets 32 cm. Hvor lange er sidene?", a: "8", hint: "Omkretsen er alle 4 sidene til sammen. Del 32 på 4 for å finne en side!", visual: "kvadrat_omkrets" },
+                  { q: "En sirkel har radius 6 cm. Hva er ca. omkretsen? (Bruk π ≈ 3)", a: "36", hint: "Formel: 2 × π × radius. Regn: 2 × 3 × 6 = ?", visual: "sirkel_omkrets" }
+                ]
+              }
+            ]
+          }
+        };
+
+        const GeometriØvelser = () => {
+          const loadProgress = () => {
+            const saved = localStorage.getItem('geometri_progress');
+            if (saved) {
+              return JSON.parse(saved);
+            }
+            return {
+              currentLevel: 'nivå1',
+              currentTopicIndex: 0,
+              currentQuestionIndex: 0,
+              completedQuestions: [],
+              correctAnswers: 0,
+              totalAttempts: 0,
+              unlockedLevels: ['nivå1']
+            };
+          };
+
+          const [progress, setProgress] = useState(loadProgress());
+          const [userAnswer, setUserAnswer] = useState('');
+          const [feedback, setFeedback] = useState(null);
+          const [showHint, setShowHint] = useState(false);
+          const [celebrating, setCelebrating] = useState(false);
+          const [shaking, setShaking] = useState(false);
+
+          useEffect(() => {
+            localStorage.setItem('geometri_progress', JSON.stringify(progress));
+          }, [progress]);
+
+          const triggerConfetti = () => {
+            const colors = ['#22d3ee', '#6366f1', '#8b5cf6'];
+            for (let i = 0; i < 25; i++) {
+              setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '100%';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3000);
+              }, i * 40);
+            }
+          };
+
+          const currentLevel = questionBank[progress.currentLevel];
+          const currentTopic = currentLevel.topics[progress.currentTopicIndex];
+          const currentQuestion = currentTopic.questions[progress.currentQuestionIndex];
+
+          const checkAnswer = () => {
+            if (!userAnswer.trim()) {
+              setShaking(true);
+              setTimeout(() => setShaking(false), 500);
+              return;
+            }
+
+            const userNum = parseFloat(userAnswer.replace(/[^0-9.]/g, ''));
+            const correctNum = parseFloat(currentQuestion.a);
+            
+            const isCorrect = Math.abs(userNum - correctNum) < 0.1;
+            const isClose = Math.abs(userNum - correctNum) < 2;
+
+            const newProgress = { ...progress };
+            newProgress.totalAttempts++;
+
+            if (isCorrect) {
+              newProgress.correctAnswers++;
+              newProgress.completedQuestions.push({
+                level: progress.currentLevel,
+                topic: currentTopic.id,
+                question: progress.currentQuestionIndex
+              });
+
+              setCelebrating(true);
+              triggerConfetti();
+              setTimeout(() => setCelebrating(false), 1000);
+
+              setFeedback({
+                type: 'success',
+                message: `🎉 Perfekt! Det var helt riktig! Kjempebra jobbet! 💪`
+              });
+
+              setTimeout(() => {
+                moveToNextQuestion(newProgress);
+              }, 2500);
+
+            } else if (isClose) {
+              setFeedback({
+                type: 'close',
+                message: `🤔 Du er veldig nær! Sjekk utregningen din en gang til!`
+              });
+            } else {
+              setShaking(true);
+              setTimeout(() => setShaking(false), 500);
+              setFeedback({
+                type: 'wrong',
+                message: `❌ Det var ikke riktig denne gangen. Trykk på 💡 for å få hjelp!`
+              });
+              setShowHint(true);
+            }
+
+            setProgress(newProgress);
+            setUserAnswer('');
+          };
+
+          const moveToNextQuestion = (currentProgress) => {
+            const newProgress = { ...currentProgress };
+            
+            if (newProgress.currentQuestionIndex < currentTopic.questions.length - 1) {
+              newProgress.currentQuestionIndex++;
+            }
+            else if (newProgress.currentTopicIndex < currentLevel.topics.length - 1) {
+              newProgress.currentTopicIndex++;
+              newProgress.currentQuestionIndex = 0;
+            }
+            else {
+              const levels = Object.keys(questionBank);
+              const currentLevelIndex = levels.indexOf(newProgress.currentLevel);
+              
+              if (currentLevelIndex < levels.length - 1) {
+                const nextLevel = levels[currentLevelIndex + 1];
+                newProgress.currentLevel = nextLevel;
+                newProgress.currentTopicIndex = 0;
+                newProgress.currentQuestionIndex = 0;
+                newProgress.unlockedLevels.push(nextLevel);
+                
+                triggerConfetti();
+                setFeedback({
+                  type: 'levelup',
+                  message: `🎊 FANTASTISK! Du har låst opp ${questionBank[nextLevel].name}!`
+                });
+                
+                setTimeout(() => {
+                  setFeedback(null);
+                  setProgress(newProgress);
+                }, 4000);
+                return;
+              } else {
+                triggerConfetti();
+                setFeedback({
+                  type: 'complete',
+                  message: `🏆 UTROLIG! Du har fullført alle nivåene! Du er en ekte geometri-mester! 🎓`
+                });
+                return;
+              }
+            }
+
+            setFeedback(null);
+            setShowHint(false);
+            setProgress(newProgress);
+          };
+
+          // Kontekstuelle illustrasjoner basert på spørsmål
+          const generateVisual = (visualType) => {
+            const commonStyle = "drop-shadow-lg";
+            
+            switch(visualType) {
+              case 'trekant_basic':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,40 30,160 170,160" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="4" className="svg-draw"/>
+                    <circle cx="100" cy="40" r="6" fill="#22d3ee"/>
+                    <circle cx="30" cy="160" r="6" fill="#22d3ee"/>
+                    <circle cx="170" cy="160" r="6" fill="#22d3ee"/>
+                    <text x="100" y="35" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">1</text>
+                    <text x="25" y="175" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">2</text>
+                    <text x="175" y="175" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">3</text>
+                  </svg>
+                );
+              
+              case 'trekant_vinkler':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,40 30,160 170,160" fill="none" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="16" fontWeight="bold">60°</text>
+                    <text x="45" y="155" textAnchor="middle" fill="#22d3ee" fontSize="16" fontWeight="bold">60°</text>
+                    <text x="155" y="155" textAnchor="middle" fill="#22d3ee" fontSize="16" fontWeight="bold">60°</text>
+                  </svg>
+                );
+              
+              case 'trekant_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,40 30,160 170,160" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="100" y1="40" x2="100" y2="160" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="110" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">høyde</text>
+                    <line x1="30" y1="165" x2="170" y2="165" stroke="#22d3ee" strokeWidth="2"/>
+                    <text x="100" y="185" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">grunnlinje</text>
+                  </svg>
+                );
+
+              case 'trekant_likesidet':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,40 30,160 170,160" fill="none" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="65" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                    <text x="135" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                    <text x="100" y="180" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                  </svg>
+                );
+              
+              case 'kvadrat_basic':
+              case 'kvadrat_omkrets':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="50" y="50" width="100" height="100" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="4" className="svg-draw"/>
+                    <circle cx="50" cy="50" r="6" fill="#22d3ee"/>
+                    <circle cx="150" cy="50" r="6" fill="#22d3ee"/>
+                    <circle cx="150" cy="150" r="6" fill="#22d3ee"/>
+                    <circle cx="50" cy="150" r="6" fill="#22d3ee"/>
+                    <text x="50" y="45" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">1</text>
+                    <text x="155" y="55" fill="#22d3ee" fontSize="14" fontWeight="bold">2</text>
+                    <text x="155" y="155" fill="#22d3ee" fontSize="14" fontWeight="bold">3</text>
+                    <text x="45" y="155" fill="#22d3ee" fontSize="14" fontWeight="bold">4</text>
+                  </svg>
+                );
+              
+              case 'rektangel_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="40" y="70" width="120" height="60" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">lengde</text>
+                    <text x="25" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">bredde</text>
+                    <line x1="40" y1="65" x2="160" y2="65" stroke="#22d3ee" strokeWidth="2"/>
+                    <line x1="30" y1="70" x2="30" y2="130" stroke="#22d3ee" strokeWidth="2"/>
+                  </svg>
+                );
+              
+              case 'kvadrat_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="50" y="50" width="100" height="100" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="100" y="105" textAnchor="middle" fill="#22d3ee" fontSize="18" fontWeight="bold">Areal</text>
+                    <text x="100" y="40" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">side × side</text>
+                  </svg>
+                );
+              
+              case 'rektangel_omkrets_2':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="30" y="70" width="140" height="60" fill="none" stroke="#22d3ee" strokeWidth="4" strokeDasharray="10,5" className="svg-draw"/>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">10 cm</text>
+                    <text x="20" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">4 cm</text>
+                    <text x="180" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">4 cm</text>
+                    <text x="100" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">10 cm</text>
+                  </svg>
+                );
+              
+              case 'kvadrat_omkrets_2':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="50" y="50" width="100" height="100" fill="none" stroke="#22d3ee" strokeWidth="4" strokeDasharray="10,5" className="svg-draw"/>
+                    <text x="100" y="40" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">? cm</text>
+                    <text x="165" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">? cm</text>
+                    <text x="100" y="170" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">? cm</text>
+                    <text x="35" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">? cm</text>
+                    <text x="100" y="105" textAnchor="middle" fill="#ef4444" fontSize="14" fontWeight="bold">Omkrets = 24 cm</text>
+                  </svg>
+                );
+              
+              case 'rektangel_areal_2':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="40" y="70" width="120" height="60" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">7 cm</text>
+                    <text x="25" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">? cm</text>
+                    <text x="100" y="105" textAnchor="middle" fill="#22d3ee" fontSize="16" fontWeight="bold">Areal = 35 cm²</text>
+                  </svg>
+                );
+              
+              case 'tv_rektangel':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="30" y="60" width="140" height="80" fill="#1e293b" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <rect x="35" y="65" width="130" height="70" fill="#6366f1" opacity="0.2"/>
+                    <text x="100" y="50" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">📺 TV-skjerm</text>
+                    <text x="100" y="160" textAnchor="middle" fill="#22d3ee" fontSize="12">80 cm × 45 cm</text>
+                  </svg>
+                );
+              
+              case 'kvadrat_stor':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="40" y="40" width="120" height="120" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="4" className="svg-draw"/>
+                    <text x="100" y="30" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">9 cm</text>
+                    <text x="170" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">9 cm</text>
+                    <text x="100" y="180" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">9 cm</text>
+                    <text x="25" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">9 cm</text>
+                  </svg>
+                );
+              
+              case 'firkant_vinkler':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="50" y="50" width="100" height="100" fill="none" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="60" y="70" fill="#22d3ee" fontSize="16" fontWeight="bold">90°</text>
+                    <text x="125" y="70" fill="#22d3ee" fontSize="16" fontWeight="bold">90°</text>
+                    <text x="125" y="145" fill="#22d3ee" fontSize="16" fontWeight="bold">90°</text>
+                    <text x="60" y="145" fill="#22d3ee" fontSize="16" fontWeight="bold">90°</text>
+                  </svg>
+                );
+              
+              case 'rombe_basic':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,30 170,100 100,170 30,100" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <text x="65" y="70" fill="#22d3ee" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="135" y="70" fill="#22d3ee" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="135" y="135" fill="#22d3ee" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="65" y="135" fill="#22d3ee" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="100" y="195" textAnchor="middle" fill="#22d3ee" fontSize="12">💎 Rombe</text>
+                  </svg>
+                );
+              
+              case 'parallellogram_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="40,130 120,130 160,70 80,70" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="120" y1="130" x2="120" y2="70" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="130" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">høyde</text>
+                    <text x="80" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">bunn: 8 cm</text>
+                  </svg>
+                );
+              
+              case 'trapes_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="70,130 50,70 150,70 130,130" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="70" y1="130" x2="70" y2="70" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="80" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">h</text>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="100" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">10 cm</text>
+                  </svg>
+                );
+              
+              case 'rombe_diagonaler':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,30 170,100 100,170 30,100" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="100" y1="30" x2="100" y2="170" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <line x1="30" y1="100" x2="170" y2="100" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="110" y="100" fill="#ef4444" fontSize="14" fontWeight="bold">d₁</text>
+                    <text x="100" y="90" textAnchor="middle" fill="#fbbf24" fontSize="14" fontWeight="bold">d₂</text>
+                  </svg>
+                );
+              
+              case 'parallellogram_omkrets':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="40,130 120,130 160,70 80,70" fill="none" stroke="#22d3ee" strokeWidth="3" strokeDasharray="10,5" className="svg-draw"/>
+                    <text x="80" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">7 cm</text>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                    <text x="50" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                    <text x="140" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">7 cm</text>
+                  </svg>
+                );
+              
+              case 'rombe_sider':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,30 170,100 100,170 30,100" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="4" className="svg-draw"/>
+                    <circle cx="100" cy="30" r="6" fill="#ef4444"/>
+                    <circle cx="170" cy="100" r="6" fill="#ef4444"/>
+                    <circle cx="100" cy="170" r="6" fill="#ef4444"/>
+                    <circle cx="30" cy="100" r="6" fill="#ef4444"/>
+                    <text x="100" y="20" textAnchor="middle" fill="#22d3ee" fontSize="12" fontWeight="bold">Alle sider like!</text>
+                  </svg>
+                );
+              
+              case 'parallellogram_areal_2':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="30,130 110,130 150,70 70,70" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="110" y1="130" x2="110" y2="70" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="120" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">3 cm</text>
+                    <text x="70" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">12 cm</text>
+                  </svg>
+                );
+              
+              case 'trapes_areal_2':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="75,130 55,70 145,70 125,130" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="75" y1="130" x2="75" y2="70" stroke="#ef4444" strokeWidth="2" strokeDasharray="5,5"/>
+                    <text x="85" y="105" fill="#ef4444" fontSize="14" fontWeight="bold">6 cm</text>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">5 cm</text>
+                    <text x="100" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">9 cm</text>
+                  </svg>
+                );
+              
+              case 'sirkel_diameter':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="70" fill="none" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="30" y1="100" x2="170" y2="100" stroke="#ef4444" strokeWidth="3"/>
+                    <circle cx="100" cy="100" r="4" fill="#22d3ee"/>
+                    <text x="100" y="90" textAnchor="middle" fill="#ef4444" fontSize="16" fontWeight="bold">diameter</text>
+                  </svg>
+                );
+              
+              case 'sirkel_radius':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="70" fill="none" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="100" y1="100" x2="170" y2="100" stroke="#ef4444" strokeWidth="3"/>
+                    <circle cx="100" cy="100" r="4" fill="#22d3ee"/>
+                    <text x="135" y="90" textAnchor="middle" fill="#ef4444" fontSize="16" fontWeight="bold">radius</text>
+                  </svg>
+                );
+              
+              case 'sirkel_omkrets':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="70" fill="none" stroke="#22d3ee" strokeWidth="4" strokeDasharray="10,5" className="svg-draw"/>
+                    <circle cx="100" cy="100" r="4" fill="#22d3ee"/>
+                    <text x="100" y="40" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">Omkrets rundt sirkelen</text>
+                  </svg>
+                );
+              
+              case 'sirkel_areal':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="70" fill="#22d3ee" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <circle cx="100" cy="100" r="4" fill="#22d3ee"/>
+                    <text x="100" y="105" textAnchor="middle" fill="#22d3ee" fontSize="18" fontWeight="bold">Areal</text>
+                  </svg>
+                );
+              
+              case 'pizza':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="70" fill="#ef4444" opacity="0.3" stroke="#ef4444" strokeWidth="3" className="svg-draw"/>
+                    <circle cx="70" cy="80" r="8" fill="#fbbf24"/>
+                    <circle cx="120" cy="90" r="8" fill="#fbbf24"/>
+                    <circle cx="90" cy="120" r="8" fill="#fbbf24"/>
+                    <circle cx="130" cy="115" r="8" fill="#fbbf24"/>
+                    <text x="100" y="35" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">🍕 Pizza-areal</text>
+                  </svg>
+                );
+              
+              case 'vinkel_rett':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <line x1="50" y1="150" x2="150" y2="150" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="50" y1="150" x2="50" y2="50" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <rect x="50" y="130" width="20" height="20" fill="none" stroke="#ef4444" strokeWidth="2"/>
+                    <text x="100" y="110" textAnchor="middle" fill="#22d3ee" fontSize="18" fontWeight="bold">90°</text>
+                  </svg>
+                );
+              
+              case 'vinkel_45':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <line x1="50" y1="150" x2="150" y2="150" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="50" y1="150" x2="120" y2="80" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <path d="M 70 150 A 20 20 0 0 1 60 135" fill="none" stroke="#ef4444" strokeWidth="2"/>
+                    <text x="80" y="135" fill="#22d3ee" fontSize="16" fontWeight="bold">45°</text>
+                  </svg>
+                );
+              
+              case 'vinkel_360':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="60" fill="none" stroke="#22d3ee" strokeWidth="3" strokeDasharray="5,5" className="svg-draw"/>
+                    <circle cx="100" cy="100" r="4" fill="#22d3ee"/>
+                    <text x="100" y="50" textAnchor="middle" fill="#22d3ee" fontSize="16" fontWeight="bold">360°</text>
+                    <path d="M 160 100 A 60 60 0 0 1 100 160" fill="none" stroke="#ef4444" strokeWidth="2" markerEnd="url(#arrowhead)"/>
+                  </svg>
+                );
+              
+              case 'vinkler_supplementary':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <line x1="20" y1="100" x2="180" y2="100" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="100" y1="100" x2="150" y2="50" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <path d="M 80 100 A 20 20 0 0 1 90 85" fill="none" stroke="#ef4444" strokeWidth="2"/>
+                    <path d="M 120 100 A 20 20 0 0 0 110 85" fill="none" stroke="#fbbf24" strokeWidth="2"/>
+                    <text x="70" y="90" fill="#ef4444" fontSize="14" fontWeight="bold">α</text>
+                    <text x="130" y="90" fill="#fbbf24" fontSize="14" fontWeight="bold">β</text>
+                  </svg>
+                );
+              
+              case 'trekant_omkrets':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <polygon points="100,40 30,160 170,160" fill="none" stroke="#22d3ee" strokeWidth="4" strokeDasharray="10,5" className="svg-draw"/>
+                    <text x="65" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">Side 1</text>
+                    <text x="135" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">Side 2</text>
+                    <text x="100" y="180" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">Side 3</text>
+                  </svg>
+                );
+              
+              case 'rektangel_omkrets':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="40" y="70" width="120" height="60" fill="none" stroke="#22d3ee" strokeWidth="4" strokeDasharray="10,5" className="svg-draw"/>
+                    <text x="100" y="60" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">↔</text>
+                    <text x="25" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">↕</text>
+                    <text x="175" y="105" fill="#22d3ee" fontSize="14" fontWeight="bold">↕</text>
+                    <text x="100" y="150" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">↔</text>
+                  </svg>
+                );
+              
+              case 'fotballbane':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="30" y="60" width="140" height="80" fill="#22c55e" opacity="0.3" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="100" y1="60" x2="100" y2="140" stroke="#ffffff" opacity="0.5" strokeWidth="2"/>
+                    <circle cx="100" cy="100" r="15" fill="none" stroke="#ffffff" opacity="0.5" strokeWidth="2"/>
+                    <circle cx="100" cy="100" r="2" fill="#ffffff"/>
+                    <text x="100" y="50" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">⚽ Fotballbane</text>
+                    <text x="100" y="165" textAnchor="middle" fill="#22d3ee" fontSize="12">Løp rundt hele banen!</text>
+                  </svg>
+                );
+              
+              case 'rom':
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <rect x="40" y="60" width="120" height="80" fill="#6366f1" opacity="0.2" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                    <line x1="50" y1="70" x2="110" y2="40" stroke="#22d3ee" strokeWidth="2"/>
+                    <line x1="160" y1="70" x2="110" y2="40" stroke="#22d3ee" strokeWidth="2"/>
+                    <line x1="160" y1="140" x2="110" y2="110" stroke="#22d3ee" strokeWidth="2"/>
+                    <polygon points="110,40 50,70 50,140 110,110" fill="#6366f1" opacity="0.1" stroke="#22d3ee" strokeWidth="2"/>
+                    <text x="100" y="180" textAnchor="middle" fill="#22d3ee" fontSize="14" fontWeight="bold">🏠 Rom</text>
+                  </svg>
+                );
+              
+              default:
+                return (
+                  <svg viewBox="0 0 200 200" className={`w-full h-48 ${commonStyle}`}>
+                    <circle cx="100" cy="100" r="50" fill="#22d3ee" opacity="0.2" stroke="#22d3ee" strokeWidth="3" className="svg-draw"/>
+                  </svg>
+                );
+            }
+          };
+
+          const successRate = progress.totalAttempts > 0 
+            ? Math.round((progress.correctAnswers / progress.totalAttempts) * 100)
+            : 0;
+
+          const totalQuestions = Object.values(questionBank).reduce((sum, level) => {
+            return sum + level.topics.reduce((tsum, topic) => tsum + topic.questions.length, 0);
+          }, 0);
+
+          return (
+            <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 py-4 px-3">
+              <div className="max-w-xl mx-auto">
+                
+                {/* Header */}
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl p-5 mb-4 border border-cyan-500/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h1 className="text-2xl font-bold text-cyan-400">
+                        Tyrs geometri app
+                      </h1>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {currentLevel.emoji} {currentLevel.name}
+                      </p>
+                    </div>
+                    <div className={`text-4xl ${celebrating ? 'bounce' : ''}`}>
+                      {currentTopic.emoji}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="bg-cyan-500/10 rounded-xl p-2 text-center border border-cyan-500/30 hover-grow">
+                      <div className="text-xl font-bold text-cyan-400">
+                        {progress.completedQuestions.length}/{totalQuestions}
+                      </div>
+                      <div className="text-xs text-cyan-300/70 font-medium">Fullført</div>
+                    </div>
+                    <div className="bg-green-500/10 rounded-xl p-2 text-center border border-green-500/30 hover-grow">
+                      <div className="text-xl font-bold text-green-400">
+                        {successRate}%
+                      </div>
+                      <div className="text-xs text-green-300/70 font-medium">Suksess</div>
+                    </div>
+                    <div className="bg-purple-500/10 rounded-xl p-2 text-center border border-purple-500/30 hover-grow">
+                      <div className="text-xl font-bold text-purple-400">
+                        {progress.unlockedLevels.length}/3
+                      </div>
+                      <div className="text-xs text-purple-300/70 font-medium">Nivåer</div>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-3 bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-cyan-500 to-purple-500 h-full transition-all duration-1000 ease-out"
+                      style={{ width: `${(progress.completedQuestions.length / totalQuestions) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Hovedkort */}
+                <div className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-cyan-500/20 ${shaking ? 'shake' : ''}`}>
+                  
+                  {/* Header */}
+                  <div style={{background: `linear-gradient(135deg, ${currentLevel.color} 0%, #6366f1 100%)`}} className="p-4 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold">{currentTopic.name}</h2>
+                        <p className="text-sm opacity-90">
+                          Spørsmål {progress.currentQuestionIndex + 1} av {currentTopic.questions.length}
+                        </p>
+                      </div>
+                      <div className="text-3xl">{currentTopic.emoji}</div>
+                    </div>
+                  </div>
+
+                  <div className="p-5">
+                    {/* Visual */}
+                    <div className="mb-5 bg-slate-900/50 rounded-xl p-4 border border-cyan-500/20">
+                      {generateVisual(currentQuestion.visual)}
+                    </div>
+
+                    {/* Spørsmål */}
+                    <div className="bg-slate-700/50 rounded-xl p-4 mb-5 border border-cyan-500/30">
+                      <h3 className="text-sm font-semibold text-cyan-400 mb-2">Spørsmål:</h3>
+                      <p className="text-slate-100 text-base leading-relaxed">
+                        {currentQuestion.q}
+                      </p>
+                    </div>
+
+                    {/* Hint */}
+                    {showHint && (
+                      <div className="bg-yellow-500/10 border-2 border-yellow-500/50 rounded-xl p-3 mb-4 slideIn">
+                        <div className="flex items-start gap-2">
+                          <span className="text-xl">💡</span>
+                          <div>
+                            <p className="text-sm font-semibold text-yellow-400 mb-1">Hint:</p>
+                            <p className="text-sm text-yellow-200/90">{currentQuestion.hint}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Feedback */}
+                    {feedback && (
+                      <div className={`rounded-xl p-4 mb-4 slideIn ${
+                        feedback.type === 'success' ? 'bg-green-500/10 border-2 border-green-500/50 glow' :
+                        feedback.type === 'close' ? 'bg-blue-500/10 border-2 border-blue-500/50' :
+                        feedback.type === 'levelup' ? 'bg-purple-500/10 border-2 border-purple-500/50 glow' :
+                        feedback.type === 'complete' ? 'bg-yellow-500/10 border-2 border-yellow-500/50 glow' :
+                        'bg-red-500/10 border-2 border-red-500/50'
+                      }`}>
+                        <p className={`text-sm font-medium ${
+                          feedback.type === 'success' ? 'text-green-400' :
+                          feedback.type === 'close' ? 'text-blue-400' :
+                          feedback.type === 'levelup' ? 'text-purple-400' :
+                          feedback.type === 'complete' ? 'text-yellow-400' :
+                          'text-red-400'
+                        }`}>
+                          {feedback.message}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Input */}
+                    {!feedback?.type.includes('success') && !feedback?.type.includes('levelup') && !feedback?.type.includes('complete') && (
+                      <>
+                        <input
+                          type="text"
+                          value={userAnswer}
+                          onChange={(e) => setUserAnswer(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && checkAnswer()}
+                          placeholder="Skriv ditt svar her..."
+                          className="w-full px-4 py-3 rounded-xl bg-slate-700/50 border-2 border-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-lg text-white placeholder-slate-400 mb-3 transition-all"
+                        />
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={checkAnswer}
+                            className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-cyan-500/50 hover-grow"
+                          >
+                            ✓ Sjekk svar
+                          </button>
+                          
+                          {!showHint && (
+                            <button
+                              onClick={() => setShowHint(true)}
+                              className="px-4 py-3 bg-yellow-500 text-slate-900 rounded-xl font-semibold hover:bg-yellow-400 transition-all shadow-lg hover-grow"
+                            >
+                              💡
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Navigasjon - Velg nivå og spørsmål */}
+                <div className="mt-4 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-xl p-4 border border-cyan-500/20">
+                  <h3 className="text-sm font-bold text-slate-300 mb-3">Navigasjon:</h3>
+                  
+                  {/* Nivå-velger */}
+                  <div className="space-y-2 mb-4">
+                    {Object.entries(questionBank).map(([levelId, level]) => {
+                      const isUnlocked = progress.unlockedLevels.includes(levelId);
+                      const isCurrent = progress.currentLevel === levelId;
+                      
+                      return (
+                        <button
+                          key={levelId}
+                          onClick={() => {
+                            if (isUnlocked) {
+                              setProgress({
+                                ...progress,
+                                currentLevel: levelId,
+                                currentTopicIndex: 0,
+                                currentQuestionIndex: 0
+                              });
+                              setFeedback(null);
+                              setShowHint(false);
+                              setUserAnswer('');
+                            }
+                          }}
+                          disabled={!isUnlocked}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+                            isUnlocked ? 'hover-grow cursor-pointer' : 'locked'
+                          } ${
+                            isCurrent ? 'border-2' : 'border'
+                          }`}
+                          style={{
+                            background: isCurrent ? `${level.color}20` : isUnlocked ? '#1e293b' : '#1e293b50',
+                            borderColor: isCurrent ? level.color : isUnlocked ? '#334155' : '#33415550'
+                          }}
+                        >
+                          <span className="text-2xl">{level.emoji}</span>
+                          <div className="flex-1 text-left">
+                            <div className={`font-semibold text-sm ${isCurrent ? 'text-white' : 'text-slate-300'}`}>
+                              {level.name}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {isUnlocked ? (isCurrent ? '← Du er her!' : 'Klikk for å velge') : '🔒 Låst'}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tema-velger for nåværende nivå */}
+                  {currentLevel && (
+                    <div className="border-t border-slate-700 pt-4">
+                      <h4 className="text-xs font-bold text-slate-400 mb-2">Velg tema i {currentLevel.name}:</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {currentLevel.topics.map((topic, idx) => {
+                          const isCurrentTopic = progress.currentTopicIndex === idx;
+                          return (
+                            <button
+                              key={topic.id}
+                              onClick={() => {
+                                setProgress({
+                                  ...progress,
+                                  currentTopicIndex: idx,
+                                  currentQuestionIndex: 0
+                                });
+                                setFeedback(null);
+                                setShowHint(false);
+                                setUserAnswer('');
+                              }}
+                              className={`p-3 rounded-lg transition-all hover-grow ${
+                                isCurrentTopic 
+                                  ? 'bg-cyan-500/20 border-2 border-cyan-500' 
+                                  : 'bg-slate-700/50 border border-slate-600'
+                              }`}
+                            >
+                              <div className="text-2xl mb-1">{topic.emoji}</div>
+                              <div className={`text-xs font-semibold ${
+                                isCurrentTopic ? 'text-cyan-400' : 'text-slate-300'
+                              }`}>
+                                {topic.name}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Spørsmål-velger for nåværende tema */}
+                  {currentTopic && (
+                    <div className="border-t border-slate-700 pt-4 mt-4">
+                      <h4 className="text-xs font-bold text-slate-400 mb-2">Spørsmål i {currentTopic.name}:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {currentTopic.questions.map((q, idx) => {
+                          const isCompleted = progress.completedQuestions.some(
+                            cq => cq.level === progress.currentLevel && 
+                                  cq.topic === currentTopic.id && 
+                                  cq.question === idx
+                          );
+                          const isCurrentQuestion = progress.currentQuestionIndex === idx;
+                          
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setProgress({
+                                  ...progress,
+                                  currentQuestionIndex: idx
+                                });
+                                setFeedback(null);
+                                setShowHint(false);
+                                setUserAnswer('');
+                              }}
+                              className={`w-10 h-10 rounded-lg font-bold transition-all hover-grow ${
+                                isCurrentQuestion
+                                  ? 'bg-cyan-500 text-white border-2 border-cyan-400'
+                                  : isCompleted
+                                  ? 'bg-green-500/20 text-green-400 border border-green-500'
+                                  : 'bg-slate-700 text-slate-400 border border-slate-600'
+                              }`}
+                            >
+                              {idx + 1}
+                              {isCompleted && <div className="text-xs">✓</div>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reset */}
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => {
+                      if (confirm('Er du sikker på at du vil starte på nytt? All progresjon går tapt!')) {
+                        localStorage.removeItem('geometri_progress');
+                        window.location.reload();
+                      }
+                    }}
+                    className="text-sm text-slate-500 hover:text-slate-400 underline transition-colors"
+                  >
+                    Start på nytt
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<GeometriØvelser />);
+    </script>
+</body>
+</html>
